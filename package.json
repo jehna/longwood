@@ -3,6 +3,10 @@
   "version": "0.0.1",
   "main": "build/index.js",
   "license": "MIT",
+  "scripts": {
+    "test": "jest",
+    "build": "tsc"
+  },
   "prettier": {
     "semi": false,
     "trailingComma": "none",
