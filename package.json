@@ -1,0 +1,19 @@
+{
+  "name": "longwood",
+  "version": "0.0.1",
+  "main": "build/index.js",
+  "license": "MIT",
+  "prettier": {
+    "semi": false,
+    "trailingComma": "none",
+    "singleQuote": true
+  },
+  "devDependencies": {
+    "@types/jest": "^26.0.10",
+    "@types/jsdom": "^16.2.3",
+    "jest": "^26.4.1",
+    "jsdom": "^16.4.0",
+    "ts-jest": "^26.2.0",
+    "typescript": "^4.0.2"
+  }
+}
