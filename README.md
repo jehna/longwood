@@ -46,7 +46,10 @@ You can nest components by provding the `children` property:
 
 ```js
 const render = ul({
-  children: [li({ innerText: 'Hello' }), li({ innerText: 'World' })]
+  children: [
+    li({ innerText: 'Hello' }),
+    li({ innerText: 'World' })
+  ]
 })
 render(document.getElementById('app'))
 ```
