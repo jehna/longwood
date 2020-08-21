@@ -70,12 +70,45 @@ The beauty of this is, that (unlike with e.g. at React) these components will be
 treated as optimizable Javascript, so you can use UglifyJS to achieve _zero-cost
 abstractions_.
 
-## Getting started
+## Getting started (ES Modules)
 
-You can install Longwood to your project like a normal dependency:
+Longwood is available as ES module, so quickest way to get started is to import
+the module directly within your HTML page:
+
+```html
+<html>
+<body>
+<div id="app"></div>
+<script type="module">
+import { div } from 'https://cdn.skypack.dev/longwood';
+
+const render = div({ innerText: 'Hello world!' });
+render(document.getElementById('app'));
+</script>
+```
+
+[▶️ Run in CodeSandbox.io](https://codesandbox.io/s/affectionate-mendel-yzwje?file=/index.html)
+
+This is literally all the code you'll need! No build tools needed, no extra
+steps, just save the code as a .html file and start hacking.
+
+## Getting started (npm)
+
+You can install Longwood to your project like a normal dependency within your
+project:
 
 ```
 yarn add longwood
+```
+
+Then you can import the package in your js file. For example if you're using
+Webpack, you can do:
+
+```js
+import { div } from 'longwood';
+
+const render = div({ innerText: 'Hello world!' });
+render(document.getElementById('app'));
 ```
 
 ## Developing
