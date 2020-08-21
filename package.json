@@ -5,7 +5,8 @@
   "license": "MIT",
   "scripts": {
     "test": "jest",
-    "build": "tsc"
+    "build": "tsc",
+    "release": "./do_release.sh"
   },
   "prettier": {
     "semi": false,

@@ -1,0 +1,12 @@
+language: node_js
+deploy:
+  provider: npm
+  email: jesse.luoto@gmail.com
+  api_key:
+    secure: pCrfOTFch4Mn2hPGimbzo5hdhCR70hFUw7ZLsAoViclNGTgbqHfeJabFf/XFNCTAz+CKM63gzCTJRPjMKowDeYN4gVRciaXOhF+fFVbmnvGOeVC2JrGFQxQKNXoHO5Q6eyvJfbV8CUPJlZT1RrKsqjq0t1du9tvumaTE4N52x70FjfdkcwB7mJUiBqoEMlFRZFOpi7gKGEgfFKZtLTMyZIp07zyd9hxS3h+Q6pWhxGHpQUQuhZNpfDSeSL+oHMYA/I6mbeegcExGLxHTgXs8PTyABFyj7OYtTX8wVwO2/v7GKQVG3WjMnB0MLto3NCXPARQySAIQ0yFx1Zq9dtz08dqtgL9Oee24HfSitVAi1Ndwti+Pa3Ljy08MEOyFW9+6WXaz+Q7Tuf59VAxdUQw2v2NwJnBPI7K4ZOB0vYdg5pma52szwcU8rlg0j9nCiY9ao7UgO26dTqmMzLscEKPVIVicEa70DviFgjy94u9qe4HIITw02OEPAk84OaBh6m/WhVX3J8tPUQpXUsQyox1MPMm+BMXXeoyz+Ws8Hb92e/ELA2toLbfeorQls+cxYnV2Rr5loXIvWgCGh4fWHIaidQ2WNu+6TFZzovr2SKLnRnTY39Ggvt8sGxU8Et6Dm5rd7LpphKUpFHgmcozJCSn/36RR9O2D0/3xe62s+qCYjHU=
+  on:
+    tags: true
+    repo: jehna/longwood
+  skip_cleanup: 'true'
+before_script:
+  - yarn test && yarn build
