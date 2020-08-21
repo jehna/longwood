@@ -5,9 +5,12 @@
   "license": "MIT",
   "scripts": {
     "test": "jest",
-    "build": "tsc",
+    "build": "yarn build:umd && yarn build:esm",
+    "build:umd": "tsc",
+    "build:esm": "tsc --module es6 --outDir build/es",
     "release": "./do_release.sh"
   },
+  "module": "build/es/index.js",
   "prettier": {
     "semi": false,
     "trailingComma": "none",
