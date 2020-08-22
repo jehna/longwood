@@ -70,6 +70,28 @@ The beauty of this is, that (unlike with e.g. at React) these components will be
 treated as optimizable Javascript, so you can use UglifyJS to achieve _zero-cost
 abstractions_.
 
+### State management
+
+Longwood does not force you to use any specific state handling, but it allows
+you to use any state handling library you wish. State changes are communicated
+with an intermediate object called `ChangeableValue`. `ChangeableValue` consists
+of two methods:
+
+```
+{
+  getCurrentValue() { ... }
+  onChange(callback) { ... }
+}
+```
+
+The `getCurrentValue` method returns the current value and `onChange` is a
+method that takes a callback which should be fired when the value changes.
+
+You can easily wrap e.g. Redux with `ChangeableValue`, use our
+[longwood-usestate](https://www.npmjs.com/package/longwood-usestate) package
+that implements React's useState hook style state handling or roll your own on
+top of rxjs, bacon.js or others.
+
 ## Getting started (ES Modules)
 
 Longwood is available as ES module, so quickest way to get started is to import
@@ -93,28 +115,6 @@ the module directly within your HTML page:
 
 This is literally all the code you'll need! No build tools needed, no extra
 steps, just save the code as a .html file and start hacking.
-
-### State management
-
-Longwood does not force you to use any specific state handling, but it allows
-you to use any state handling library you wish. State changes are communicated
-with an intermediate object called `ChangeableValue`. `ChangeableValue` consists
-of two methods:
-
-```
-{
-  getCurrentValue() { ... }
-  onChange(callback) { ... }
-}
-```
-
-The `getCurrentValue` method returns the current value and `onChange` is a
-method that takes a callback which should be fired when the value changes.
-
-You can easily wrap e.g. Redux with `ChangeableValue`, use our
-[longwood-usestate](https://www.npmjs.com/package/longwood-usestate) package
-that implements React's useState hook style state handling or roll your own on
-top of rxjs, bacon.js or others.
 
 ## Getting started (npm)
 
