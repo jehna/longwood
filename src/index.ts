@@ -1,21 +1,24 @@
-export interface AsyncValue<T> extends AsyncIterable<T> {
-  _getCurrent(): T
+type UnsubsctiveFn = () => void
+
+export interface ChangeableValue<T> {
+  getCurrentValue(): T
+  onChange(callback: (newValue: T) => void): UnsubsctiveFn
 }
 
-const isAsyncvalue = <T>(v: any): v is AsyncValue<T> =>
-  v instanceof Object && '_getCurrent' in v
+const isAsyncvalue = <T>(v: any): v is ChangeableValue<T> =>
+  v instanceof Object && 'getCurrentValue' in v && 'onChange' in v
 
 type MountFn = (parent: Node) => RemoveFn
-type KeyedElement = {
-  key: string | number | AsyncValue<string> | AsyncValue<number>
+export type KeyedElement = {
+  key: string | number | ChangeableValue<string> | ChangeableValue<number>
   mount: MountFn
 }
-type SubscribeableElements = AsyncValue<KeyedElement[]>
+export type SubscribeableElements = ChangeableValue<KeyedElement[]>
 type Children = (MountFn | SubscribeableElements)[]
 type RemoveFn = () => void
 
 type PropifyMap<T extends { [k: string]: any }> = {
-  [K in keyof T]: T[K] | AsyncValue<T[K]>
+  [K in keyof T]: T[K] | ChangeableValue<T[K]>
 }
 
 type ExcludePropNames<O, T> = {
@@ -32,8 +35,10 @@ type ElementProps<TagName extends keyof HTMLElementTagNameMap> = {
       e: HTMLElementEventMap[K]
     ) => void
   }
-  dataset?: { [key: string]: string | AsyncValue<string> }
-  style?: { [K in keyof CSSStyleDeclaration]?: AsyncValue<string> | string }
+  dataset?: { [key: string]: string | ChangeableValue<string> }
+  style?: {
+    [K in keyof CSSStyleDeclaration]?: ChangeableValue<string> | string
+  }
 } & Partial<
   PropifyMap<
     NoFunctions<
@@ -190,7 +195,7 @@ export const frameset = createElement('frameset')
 export const marquee = createElement('marquee')
 
 export const key = (
-  key: string | number | AsyncValue<string> | AsyncValue<number>,
+  key: string | number | ChangeableValue<string> | ChangeableValue<number>,
   element: MountFn
 ): KeyedElement => ({
   key,
@@ -198,14 +203,12 @@ export const key = (
 })
 
 const subOrSet = async <T>(
-  value: T | AsyncValue<T>,
+  value: T | ChangeableValue<T>,
   setter: (val: T) => void
 ) => {
   if (isAsyncvalue(value)) {
-    setter(value._getCurrent())
-    for await (const next of value) {
-      setter(next)
-    }
+    setter(value.getCurrentValue())
+    value.onChange(setter)
   } else {
     setter(value)
   }
@@ -220,10 +223,11 @@ export const fragment = ({
   return () => parent.removeChild(el)
 }
 
-export const text = (text: string | AsyncValue<string>): MountFn => (
+export const text = (text: string | ChangeableValue<string>): MountFn => (
   parent
 ) => {
-  const initialText = typeof text === 'string' ? text : text._getCurrent() ?? ''
+  const initialText =
+    typeof text === 'string' ? text : text.getCurrentValue() ?? ''
   const el = parent.ownerDocument!.createTextNode(initialText)
   parent.appendChild(el)
   if (isAsyncvalue(text)) {
@@ -240,10 +244,10 @@ const append = (children: Children, parent: Node) => {
 }
 
 const keyV = (
-  key: string | number | AsyncValue<string> | AsyncValue<number>
+  key: string | number | ChangeableValue<string> | ChangeableValue<number>
 ) => {
   if (isAsyncvalue(key)) {
-    return key._getCurrent()
+    return key.getCurrentValue()
   } else {
     return key
   }

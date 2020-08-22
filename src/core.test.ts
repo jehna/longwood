@@ -1,5 +1,5 @@
 import { JSDOM } from 'jsdom'
-import { div, ul, li, text, key, AsyncValue } from './index'
+import { div, ul, li, text, key, ChangeableValue } from './index'
 
 const createRenderTarget = () =>
   new JSDOM('<div id="app" />').window.document.getElementById('app')!
@@ -43,45 +43,49 @@ describe('element creation', () => {
   })
 })
 
-describe('Initial AsyncValue', () => {
-  const mockValue = <T>(initialValue: T, nextValue?: T): AsyncValue<T> => {
-    let once = false
+describe('Initial ChangeableValue', () => {
+  const simpleMockState = <T>(
+    value: T
+  ): ChangeableValue<T> & { setValue(val: T): void } => {
+    const listeners: ((newValue: T) => void)[] = []
     return {
-      _getCurrent: () => initialValue,
-      [Symbol.asyncIterator]: () => ({
-        next: () => {
-          once = !once
-          return once && nextValue
-            ? Promise.resolve({ value: nextValue })
-            : Promise.resolve({ value: undefined, done: true })
-        }
-      })
+      getCurrentValue: () => value,
+      onChange: (l) => {
+        listeners.push(l)
+        return () => {}
+      },
+      setValue: (newValue: T) => {
+        value = newValue
+        listeners.forEach((l) => l(newValue))
+      }
     }
   }
 
   it('should accept AsyncValue as text', () => {
-    const render = div({ children: [text(mockValue('Hello world!'))] })
+    const render = div({ children: [text(simpleMockState('Hello world!'))] })
     const element = createRenderTarget()
     render(element)
     expect(element.innerHTML).toEqual('<div>Hello world!</div>')
   })
 
   it('should accept AsyncValue as prop', () => {
-    const render = div({ className: mockValue('classname1') })
+    const render = div({ className: simpleMockState('classname1') })
     const element = createRenderTarget()
     render(element)
     expect(element.innerHTML).toEqual('<div class="classname1"></div>')
   })
 
   it('should render incoming value from iterator', async () => {
-    const render = div({ className: mockValue('classname1', 'classname2') })
+    const className = simpleMockState('classname1')
+    const render = div({ className })
     const element = createRenderTarget()
-    await render(element)
+    render(element)
+    className.setValue('classname2')
     expect(element.innerHTML).toEqual('<div class="classname2"></div>')
   })
 
   it('should render elements from asynciterable array', () => {
-    const render = div({ children: [mockValue([key('test', ul())])] })
+    const render = div({ children: [simpleMockState([key('test', ul())])] })
     const element = createRenderTarget()
     render(element)
     expect(element.innerHTML).toEqual('<div><ul></ul></div>')
