@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "main": "build/index.js",
   "license": "MIT",
+  "homepage": "https://github.com/jehna/longwood",
   "scripts": {
     "test": "jest",
     "build": "yarn build:umd && yarn build:esm",
