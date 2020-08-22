@@ -79,13 +79,13 @@ of two methods:
 
 ```
 {
-  getCurrentValue() { ... }
+  valueOf() { ... }
   onChange(callback) { ... }
 }
 ```
 
-The `getCurrentValue` method returns the current value and `onChange` is a
-method that takes a callback which should be fired when the value changes.
+The `valueOf` method returns the current value and `onChange` is a method that
+takes a callback which should be fired when the value changes.
 
 You can easily wrap e.g. Redux with `ChangeableValue`, use our
 [longwood-usestate](https://www.npmjs.com/package/longwood-usestate) package

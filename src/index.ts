@@ -1,12 +1,12 @@
 type UnsubsctiveFn = () => void
 
 export interface ChangeableValue<T> {
-  getCurrentValue(): T
+  valueOf(): T
   onChange(callback: (newValue: T) => void): UnsubsctiveFn
 }
 
 const isAsyncvalue = <T>(v: any): v is ChangeableValue<T> =>
-  v instanceof Object && 'getCurrentValue' in v && 'onChange' in v
+  v instanceof Object && 'valueOf' in v && 'onChange' in v
 
 type MountFn = (parent: Node) => RemoveFn
 export type KeyedElement = {
@@ -207,7 +207,7 @@ const subOrSet = async <T>(
   setter: (val: T) => void
 ) => {
   if (isAsyncvalue(value)) {
-    setter(value.getCurrentValue())
+    setter(value.valueOf())
     value.onChange(setter)
   } else {
     setter(value)
@@ -226,8 +226,7 @@ export const fragment = ({
 export const text = (text: string | ChangeableValue<string>): MountFn => (
   parent
 ) => {
-  const initialText =
-    typeof text === 'string' ? text : text.getCurrentValue() ?? ''
+  const initialText = typeof text === 'string' ? text : text.valueOf() ?? ''
   const el = parent.ownerDocument!.createTextNode(initialText)
   parent.appendChild(el)
   if (isAsyncvalue(text)) {
@@ -247,7 +246,7 @@ const keyV = (
   key: string | number | ChangeableValue<string> | ChangeableValue<number>
 ) => {
   if (isAsyncvalue(key)) {
-    return key.getCurrentValue()
+    return key.valueOf()
   } else {
     return key
   }

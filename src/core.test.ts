@@ -49,7 +49,7 @@ describe('Initial ChangeableValue', () => {
   ): ChangeableValue<T> & { setValue(val: T): void } => {
     const listeners: ((newValue: T) => void)[] = []
     return {
-      getCurrentValue: () => value,
+      valueOf: () => value,
       onChange: (l) => {
         listeners.push(l)
         return () => {}
