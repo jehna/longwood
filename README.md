@@ -31,27 +31,45 @@ Longwood uses composition to describe component hierarchies. In practice, here's
 the "hello world" of Longwood:
 
 ```js
-const render = div({ innerText: 'Hello world' })
+const render = div(text('Hello world'))
 render(document.getElementById('app'))
 ```
 
-[▶️ Run in CodeSandbox.io](https://codesandbox.io/s/beautiful-surf-8ytcx?file=/src/index.ts)
+[▶️ Run in CodeSandbox.io](https://codesandbox.io/s/great-violet-esnk4?file=/src/index.ts)
 
-This creates a `<div>` element which has `innerText` set to "Hello world" and
-mounts the component inside `<div id="app">` element.
+This creates a `<div>` element which has a child [`Text`
+node](https://developer.mozilla.org/en-US/docs/Web/API/Text) containing "Hello
+world" and mounts the component inside `<div id="app">` element.
 
 ### Nesting components
 
-You can nest components by provding the `children` property:
+You can nest multiple components:
 
 ```js
-const render = ul({
-  children: [li({ innerText: 'Hello' }), li({ innerText: 'World' })]
+const render = ul(
+  li(text('Hello')),
+  li(text('World'))
+)
+render(document.getElementById('app'))
+```
+
+[▶️ Run in CodeSandbox.io](https://codesandbox.io/s/priceless-johnson-t74sh?file=/src/index.ts)
+
+### Passing props
+
+You have all common props from HTML element JS API available, and you can
+provide an pbject as the first argument to pass them in. In this case you'll
+need to use the named `children` prop to pass in the child components:
+
+```js
+const render = div({
+  children: [text('Hello world')],
+  className: 'my-app'
 })
 render(document.getElementById('app'))
 ```
 
-[▶️ Run in CodeSandbox.io](https://codesandbox.io/s/gallant-mccarthy-g60j0?file=/src/index.ts)
+[▶️ Run in CodeSandbox.io](https://codesandbox.io/s/interesting-rgb-ee4bb?file=/src/index.ts)
 
 ### Custom components
 
@@ -59,12 +77,12 @@ Custom components in Longwood are simply functions. You can split your
 components up without any overhead:
 
 ```js
-const Greet = ({ who }) => div({ innerText: `Hello ${who}` })
+const Greet = ({ who }) => div(text(`Hello ${who}`))
 const render = Greet({ who: 'world' })
 render(document.getElementById('app'))
 ```
 
-[▶️ Run in CodeSandbox.io](https://codesandbox.io/s/nameless-resonance-sntg7?file=/src/index.ts)
+[▶️ Run in CodeSandbox.io](https://codesandbox.io/s/sad-fermat-ujp15?file=/src/index.ts)
 
 The beauty of this is, that (unlike with e.g. at React) these components will be
 treated as optimizable Javascript, so you can use UglifyJS to achieve _zero-cost
@@ -102,16 +120,16 @@ the module directly within your HTML page:
   <body>
     <div id="app"></div>
     <script type="module">
-      import { div } from 'https://cdn.skypack.dev/longwood'
+      import { div, text } from 'https://cdn.skypack.dev/longwood'
 
-      const render = div({ innerText: 'Hello world!' })
+      const render = div(text('Hello world!'))
       render(document.getElementById('app'))
     </script>
   </body>
 </html>
 ```
 
-[▶️ Run in CodeSandbox.io](https://codesandbox.io/s/affectionate-mendel-yzwje?file=/index.html)
+[▶️ Run in CodeSandbox.io](https://codesandbox.io/s/unruffled-star-xs16e?file=/index.html)
 
 This is literally all the code you'll need! No build tools needed, no extra
 steps, just save the code as a .html file and start hacking.
