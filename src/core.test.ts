@@ -13,14 +13,14 @@ describe('element creation', () => {
   })
 
   it('should create nested components', () => {
-    const render = ul({ children: [li(), li()] })
+    const render = ul(li(), li())
     const element = createRenderTarget()
     render(element)
     expect(element.innerHTML).toEqual('<ul><li></li><li></li></ul>')
   })
 
   it('should create components with a text node', () => {
-    const render = div({ children: [text('Hello world')] })
+    const render = div(text('Hello world'))
     const element = createRenderTarget()
     render(element)
     expect(element.innerHTML).toEqual('<div>Hello world</div>')
@@ -62,7 +62,7 @@ describe('Initial ChangeableValue', () => {
   }
 
   it('should accept AsyncValue as text', () => {
-    const render = div({ children: [text(simpleMockState('Hello world!'))] })
+    const render = div(text(simpleMockState('Hello world!')))
     const element = createRenderTarget()
     render(element)
     expect(element.innerHTML).toEqual('<div>Hello world!</div>')
@@ -85,9 +85,18 @@ describe('Initial ChangeableValue', () => {
   })
 
   it('should render elements from asynciterable array', () => {
-    const render = div({ children: [simpleMockState([key('test', ul())])] })
+    const render = div(simpleMockState([key('test', ul())]))
     const element = createRenderTarget()
     render(element)
     expect(element.innerHTML).toEqual('<div><ul></ul></div>')
+  })
+
+  it('should allow passing children as arguments', () => {
+    const render = div(ul(li(text('Hello')), li(text('World'))))
+    const element = createRenderTarget()
+    render(element)
+    expect(element.innerHTML).toEqual(
+      '<div><ul><li>Hello</li><li>World</li></ul></div>'
+    )
   })
 })

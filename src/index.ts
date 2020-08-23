@@ -27,6 +27,16 @@ type ExcludePropNames<O, T> = {
 type ExcludeProp<O, T> = Pick<O, ExcludePropNames<O, T>>
 type NoFunctions<T> = ExcludeProp<T, (...props: any[]) => any>
 
+type ElementArgs<TagName extends keyof HTMLElementTagNameMap> = Exclude<
+  [ElementProps<TagName>] | ElementProps<TagName>['children'],
+  undefined
+>
+
+const isProps = <TagName extends keyof HTMLElementTagNameMap>(
+  value: ElementArgs<TagName>
+): value is [ElementProps<TagName>] =>
+  value.length === 1 && typeof value[0] === 'object' && !isAsyncvalue(value[0])
+
 type ElementProps<TagName extends keyof HTMLElementTagNameMap> = {
   children?: Children
   listen?: {
@@ -49,13 +59,19 @@ type ElementProps<TagName extends keyof HTMLElementTagNameMap> = {
 
 const createElement = <TagName extends keyof HTMLElementTagNameMap>(
   tagName: TagName
-) => ({
-  children = [],
-  listen = {},
-  dataset = {},
-  style = {},
-  ...rest
-}: ElementProps<TagName> = {}): MountFn => (parent) => {
+) => (...args: ElementArgs<TagName>): MountFn => (parent) => {
+  const props: ElementProps<TagName> = isProps(args)
+    ? args[0]
+    : ({ children: args } as ElementProps<TagName>)
+
+  const {
+    children = [],
+    listen = {},
+    dataset = {},
+    style = {},
+    ...rest
+  } = props
+
   const el = parent.ownerDocument!.createElement(tagName)
   parent.appendChild(el)
 
