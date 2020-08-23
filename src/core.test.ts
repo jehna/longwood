@@ -84,11 +84,33 @@ describe('Initial ChangeableValue', () => {
     expect(element.innerHTML).toEqual('<div class="classname2"></div>')
   })
 
-  it('should render elements from asynciterable array', () => {
+  it('should render elements from ChangeableValue array', () => {
     const render = div(simpleMockState([key('test', ul())]))
     const element = createRenderTarget()
     render(element)
     expect(element.innerHTML).toEqual('<div><ul></ul></div>')
+  })
+
+  it('should handle text changes from ChangeableValue', () => {
+    const state = simpleMockState('foo')
+    const render = div(text(state))
+    const element = createRenderTarget()
+    render(element)
+    expect(element.innerHTML).toEqual('<div>foo</div>')
+    state.setValue('bar')
+    expect(element.innerHTML).toEqual('<div>bar</div>')
+  })
+
+  it('should update elements inside from ChangeableValue array', () => {
+    const first = [key('test', div(text('hello there')))]
+    const second = [key('test', div(text('hello world')))]
+    const state = simpleMockState(first)
+    const render = div(state)
+    const element = createRenderTarget()
+    render(element)
+    expect(element.innerHTML).toEqual('<div><div>hello there</div></div>')
+    state.setValue(second)
+    expect(element.innerHTML).toEqual('<div><div>hello world</div></div>')
   })
 
   it('should allow passing children as arguments', () => {

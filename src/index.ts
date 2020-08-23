@@ -8,7 +8,7 @@ export interface ChangeableValue<T> {
 const isAsyncvalue = <T>(v: any): v is ChangeableValue<T> =>
   v instanceof Object && 'valueOf' in v && 'onChange' in v
 
-type MountFn = (parent: Node) => RemoveFn
+type MountFn = (parent: Node, current?: Node) => Node
 export type KeyedElement = {
   key: string | number | ChangeableValue<string> | ChangeableValue<number>
   mount: MountFn
@@ -57,9 +57,18 @@ type ElementProps<TagName extends keyof HTMLElementTagNameMap> = {
   >
 >
 
+const createAndAppend = <TagName extends keyof HTMLElementTagNameMap>(
+  tagName: TagName,
+  parent: Node
+) => {
+  const el = parent.ownerDocument!.createElement(tagName)
+  parent.appendChild(el)
+  return el
+}
+
 const createElement = <TagName extends keyof HTMLElementTagNameMap>(
   tagName: TagName
-) => (...args: ElementArgs<TagName>): MountFn => (parent) => {
+) => (...args: ElementArgs<TagName>): MountFn => (parent, curr) => {
   const props: ElementProps<TagName> = isProps(args)
     ? args[0]
     : ({ children: args } as ElementProps<TagName>)
@@ -72,8 +81,16 @@ const createElement = <TagName extends keyof HTMLElementTagNameMap>(
     ...rest
   } = props
 
-  const el = parent.ownerDocument!.createElement(tagName)
-  parent.appendChild(el)
+  if (curr) {
+    if (curr.nodeName.toLowerCase() !== tagName) {
+      parent.removeChild(curr)
+    }
+  }
+
+  const el =
+    curr && curr.nodeName.toLowerCase() === tagName
+      ? (curr as HTMLElementTagNameMap[TagName])
+      : createAndAppend(tagName, parent)
 
   Object.entries(listen).forEach(([name, listener]) =>
     el.addEventListener(name, listener as any)
@@ -92,9 +109,8 @@ const createElement = <TagName extends keyof HTMLElementTagNameMap>(
     })
   })
   append(children, el)
-  return () => {
-    parent.removeChild(el)
-  }
+
+  return el
 }
 
 export const html = createElement('html')
@@ -236,26 +252,41 @@ export const fragment = ({
   const el = parent.ownerDocument!.createDocumentFragment()
   parent.appendChild(el)
   append(children, el)
-  return () => parent.removeChild(el)
+  return el
 }
 
+const isTextNode = (node: Node): node is Text =>
+  'data' in node && !('tagName' in node)
+
 export const text = (text: string | ChangeableValue<string>): MountFn => (
-  parent
+  parent,
+  prev
 ) => {
+  if (prev) {
+    if (isTextNode(prev)) {
+      if (typeof text === 'string') {
+        prev.data = text
+      }
+      return prev
+    } else {
+      parent.removeChild(prev)
+    }
+  }
   const initialText = typeof text === 'string' ? text : text.valueOf() ?? ''
   const el = parent.ownerDocument!.createTextNode(initialText)
   parent.appendChild(el)
   if (isAsyncvalue(text)) {
     subOrSet(text, (newData) => (el.data = newData ?? ''))
   }
-  return () => parent.removeChild(el)
+  return el
 }
 
 const append = (children: Children, parent: Node) => {
-  const removes = children.map((child) =>
-    isAsyncvalue(child) ? subscribeChild(child, parent) : child(parent)
+  children.forEach((child, i) =>
+    isAsyncvalue(child)
+      ? subscribeChild(child, parent)
+      : child(parent, parent.childNodes[i])
   )
-  return () => removes.forEach((remove) => remove())
 }
 
 const keyV = (
@@ -268,11 +299,8 @@ const keyV = (
   }
 }
 
-const subscribeChild = (
-  children: SubscribeableElements,
-  parent: Node
-): RemoveFn => {
-  let last: (KeyedElement & { remove: RemoveFn })[] = []
+const subscribeChild = (children: SubscribeableElements, parent: Node) => {
+  let last: (KeyedElement & { element: Node })[] = []
 
   const listener = (curr: KeyedElement[]) => {
     // Remove unfound
@@ -280,24 +308,21 @@ const subscribeChild = (
       .filter(
         ({ key }) => !curr.some(({ key: kkey }) => keyV(key) === keyV(kkey))
       )
-      .forEach(({ remove }) => {
-        remove()
+      .forEach(({ element }) => {
+        parent.removeChild(element)
       })
 
     last = curr.map(({ key, mount }) => {
       const prev = last.find((p) => p.key === key)
       if (prev) {
-        return prev
+        const element = mount(parent, prev.element)
+        return { key, mount, element }
       } else {
-        const remove = mount(parent)
-        return { key, mount, remove }
+        const element = mount(parent)
+        return { key, mount, element }
       }
     })
   }
 
   subOrSet(children, listener)
-
-  return () => {
-    last.forEach(({ remove }) => remove())
-  }
 }
