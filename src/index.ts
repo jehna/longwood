@@ -80,7 +80,7 @@ const createElement = <TagName extends keyof HTMLElementTagNameMap>(
   if (curr) {
     if (curr.nodeName.toLowerCase() !== tagName) {
       parent.removeChild(curr)
-    } else if (parent.nextSibling !== nextSibling) {
+    } else if (curr.nextSibling !== (nextSibling ?? null)) {
       if (nextSibling) parent.insertBefore(curr, nextSibling)
       else parent.appendChild(curr)
     }
@@ -101,7 +101,10 @@ const createElement = <TagName extends keyof HTMLElementTagNameMap>(
   Object.entries(rest).forEach(([name, value]) => {
     subOrSet(value, (v) => {
       //@ts-expect-error
-      el[name] = v
+      if (el[name] !== v) {
+        //@ts-expect-error
+        el[name] = v
+      }
     })
   })
   append(children, el)
