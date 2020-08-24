@@ -8,14 +8,13 @@ export interface ChangeableValue<T> {
 const isAsyncvalue = <T>(v: any): v is ChangeableValue<T> =>
   v instanceof Object && 'valueOf' in v && 'onChange' in v
 
-type MountFn = (parent: Node) => RemoveFn
+type MountFn = (parent: Node, current?: Node, nextSibling?: Node) => Node
 export type KeyedElement = {
   key: string | number | ChangeableValue<string> | ChangeableValue<number>
   mount: MountFn
 }
 export type SubscribeableElements = ChangeableValue<KeyedElement[]>
 type Children = (MountFn | SubscribeableElements)[]
-type RemoveFn = () => void
 
 type PropifyMap<T extends { [k: string]: any }> = {
   [K in keyof T]: T[K] | ChangeableValue<T[K]>
@@ -39,12 +38,6 @@ const isProps = <TagName extends keyof HTMLElementTagNameMap>(
 
 type ElementProps<TagName extends keyof HTMLElementTagNameMap> = {
   children?: Children
-  listen?: {
-    [K in keyof HTMLElementEventMap]?: (
-      this: HTMLElementTagNameMap[TagName],
-      e: HTMLElementEventMap[K]
-    ) => void
-  }
   dataset?: { [key: string]: string | ChangeableValue<string> }
   style?: {
     [K in keyof CSSStyleDeclaration]?: ChangeableValue<string> | string
@@ -57,27 +50,47 @@ type ElementProps<TagName extends keyof HTMLElementTagNameMap> = {
   >
 >
 
+const createAndAppend = <TagName extends keyof HTMLElementTagNameMap>(
+  tagName: TagName,
+  parent: Node,
+  nextSibling?: Node
+) => {
+  const el = parent.ownerDocument!.createElement(tagName)
+  if (nextSibling) {
+    parent.insertBefore(el, nextSibling)
+  } else {
+    parent.appendChild(el)
+  }
+  return el
+}
+
 const createElement = <TagName extends keyof HTMLElementTagNameMap>(
   tagName: TagName
-) => (...args: ElementArgs<TagName>): MountFn => (parent) => {
+) => (...args: ElementArgs<TagName>): MountFn => (
+  parent,
+  curr,
+  nextSibling
+) => {
   const props: ElementProps<TagName> = isProps(args)
     ? args[0]
     : ({ children: args } as ElementProps<TagName>)
 
-  const {
-    children = [],
-    listen = {},
-    dataset = {},
-    style = {},
-    ...rest
-  } = props
+  const { children = [], dataset = {}, style = {}, ...rest } = props
 
-  const el = parent.ownerDocument!.createElement(tagName)
-  parent.appendChild(el)
+  if (curr) {
+    if (curr.nodeName.toLowerCase() !== tagName) {
+      parent.removeChild(curr)
+    } else if (parent.nextSibling !== nextSibling) {
+      if (nextSibling) parent.insertBefore(curr, nextSibling)
+      else parent.appendChild(curr)
+    }
+  }
 
-  Object.entries(listen).forEach(([name, listener]) =>
-    el.addEventListener(name, listener as any)
-  )
+  const el =
+    curr && curr.nodeName.toLowerCase() === tagName
+      ? (curr as HTMLElementTagNameMap[TagName])
+      : createAndAppend(tagName, parent, nextSibling)
+
   Object.entries(dataset).forEach(([key, value]) =>
     subOrSet(value, (v) => (el.dataset[key] = v))
   )
@@ -92,9 +105,8 @@ const createElement = <TagName extends keyof HTMLElementTagNameMap>(
     })
   })
   append(children, el)
-  return () => {
-    parent.removeChild(el)
-  }
+
+  return el
 }
 
 export const html = createElement('html')
@@ -236,26 +248,46 @@ export const fragment = ({
   const el = parent.ownerDocument!.createDocumentFragment()
   parent.appendChild(el)
   append(children, el)
-  return () => parent.removeChild(el)
+  return el
 }
 
+const isTextNode = (node: Node): node is Text =>
+  'data' in node && !('tagName' in node)
+
 export const text = (text: string | ChangeableValue<string>): MountFn => (
-  parent
+  parent,
+  prev
 ) => {
+  if (prev) {
+    if (isTextNode(prev)) {
+      if (typeof text === 'string') {
+        prev.data = text
+      }
+      return prev
+    } else {
+      parent.removeChild(prev)
+    }
+  }
   const initialText = typeof text === 'string' ? text : text.valueOf() ?? ''
   const el = parent.ownerDocument!.createTextNode(initialText)
   parent.appendChild(el)
   if (isAsyncvalue(text)) {
     subOrSet(text, (newData) => (el.data = newData ?? ''))
   }
-  return () => parent.removeChild(el)
+  return el
 }
 
 const append = (children: Children, parent: Node) => {
-  const removes = children.map((child) =>
-    isAsyncvalue(child) ? subscribeChild(child, parent) : child(parent)
-  )
-  return () => removes.forEach((remove) => remove())
+  children
+    .map(
+      (child, i) =>
+        [child, parent.childNodes[i], parent.childNodes[i + 1]] as const
+    )
+    .forEach(([child, curr, nextSibling]) =>
+      isAsyncvalue(child)
+        ? subscribeChild(child, parent)
+        : child(parent, curr, nextSibling)
+    )
 }
 
 const keyV = (
@@ -268,11 +300,8 @@ const keyV = (
   }
 }
 
-const subscribeChild = (
-  children: SubscribeableElements,
-  parent: Node
-): RemoveFn => {
-  let last: (KeyedElement & { remove: RemoveFn })[] = []
+const subscribeChild = (children: SubscribeableElements, parent: Node) => {
+  let last: (KeyedElement & { element: Node })[] = []
 
   const listener = (curr: KeyedElement[]) => {
     // Remove unfound
@@ -280,24 +309,22 @@ const subscribeChild = (
       .filter(
         ({ key }) => !curr.some(({ key: kkey }) => keyV(key) === keyV(kkey))
       )
-      .forEach(({ remove }) => {
-        remove()
+      .forEach(({ element }) => {
+        parent.removeChild(element)
       })
 
-    last = curr.map(({ key, mount }) => {
+    last = curr.map(({ key, mount }, i) => {
       const prev = last.find((p) => p.key === key)
       if (prev) {
-        return prev
+        const next = curr[i + 1] && last.find((p) => p.key === curr[i + 1]?.key)
+        const element = mount(parent, prev.element, next?.element)
+        return { key, mount, element }
       } else {
-        const remove = mount(parent)
-        return { key, mount, remove }
+        const element = mount(parent)
+        return { key, mount, element }
       }
     })
   }
 
   subOrSet(children, listener)
-
-  return () => {
-    last.forEach(({ remove }) => remove())
-  }
 }
