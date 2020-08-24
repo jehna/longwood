@@ -26,6 +26,13 @@ describe('element creation', () => {
     expect(element.innerHTML).toEqual('<div>Hello world</div>')
   })
 
+  it('should create components with textContent', () => {
+    const render = div({ textContent: 'Hello world' })
+    const element = createRenderTarget()
+    render(element)
+    expect(element.innerHTML).toEqual('<div>Hello world</div>')
+  })
+
   it('should set attributes as text', () => {
     const render = div({ className: 'hello-world' })
     const element = createRenderTarget()
