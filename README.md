@@ -1,13 +1,4 @@
-<center>
-
-![Travis CI build status](https://travis-ci.org/jehna/longwood.svg?branch=master)
-[![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
-[![npm version](https://img.shields.io/npm/v/longwood.svg?style=flat)](https://www.npmjs.com/package/longwood)
-![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)
-
-</center>
-
-# Longwood
+# Longwood    ![Travis CI build status](https://travis-ci.org/jehna/longwood.svg?branch=master) [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE) [![npm version](https://img.shields.io/npm/v/longwood.svg?style=flat)](https://www.npmjs.com/package/longwood) ![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)
 
 > A simple user interface library
 
@@ -46,10 +37,7 @@ world" and mounts the component inside `<div id="app">` element.
 You can nest multiple components:
 
 ```js
-const render = ul(
-  li(text('Hello')),
-  li(text('World'))
-)
+const render = ul(li(text('Hello')), li(text('World')))
 render(document.getElementById('app'))
 ```
 
