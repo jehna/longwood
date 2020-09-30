@@ -20,7 +20,7 @@
   "devDependencies": {
     "@types/jest": "^26.0.10",
     "@types/jsdom": "^16.2.4",
-    "jest": "^26.4.1",
+    "jest": "^26.4.2",
     "jsdom": "^16.4.0",
     "ts-jest": "^26.4.1",
     "typescript": "^4.0.3"
