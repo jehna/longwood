@@ -18,7 +18,7 @@
     "singleQuote": true
   },
   "devDependencies": {
-    "@types/jest": "^26.0.10",
+    "@types/jest": "^26.0.14",
     "@types/jsdom": "^16.2.4",
     "jest": "^26.4.2",
     "jsdom": "^16.4.0",
