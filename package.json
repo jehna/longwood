@@ -19,7 +19,7 @@
   },
   "devDependencies": {
     "@types/jest": "^26.0.10",
-    "@types/jsdom": "^16.2.3",
+    "@types/jsdom": "^16.2.4",
     "jest": "^26.4.1",
     "jsdom": "^16.4.0",
     "ts-jest": "^26.2.0",
