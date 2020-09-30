@@ -170,9 +170,11 @@ Here the component renders a loading text first and then re-renders the result
 as soon as the request finishes.
 
 This trivial example could be extended to use any general state management
-library instead of promises. You could use rxjs subscriptions, Redux selectors
-or Firebase listeners, and they are all as easy to implement as our little
-example.
+library instead of promises. You could use rxjs subscriptions, [Redux
+selectors][redux-example] or Firebase listeners, and they are all as easy to
+implement as our little example.
+
+[redux-example]: https://codesandbox.io/s/jolly-blackwell-vkrcv?file=/src/store.ts
 
 ## Getting started (ES Modules)
 
