@@ -78,25 +78,101 @@ abstractions_.
 
 ### State management
 
-Longwood does not force you to use any specific state handling, but it allows
-you to use any state handling library you wish. State changes are communicated
-with an intermediate object called `ChangeableValue`. `ChangeableValue` consists
-of two methods:
+Longwood does not force you to use any specific state handling, in fact it does
+not have any state handling built in, because state handling should not be part
+of a view library.
 
+There are many great state handling libraries out there, and connecting any of
+those to Longwood is simple when you know the basics.
+
+#### A simple asynchronous state
+
+First thing you need to know is that each Longstate component is its own small
+render function:
+
+```js
+const renderDiv = div()
+renderDiv(document.getElementById('app')) // Renders a empty div
 ```
-{
-  valueOf() { ... }
-  onChange(callback) { ... }
+
+If we look closer, we can see that all Longstate components take in a parent
+argument and return the created element:
+
+```js
+const renderDiv = div()
+const parent = document.getElementById('app')
+const createdDivElement = renderDiv(parent)
+```
+
+Normally we would create our custom Longstate function like this:
+
+```js
+const Greet = ({ who }) => div(text(`Hello ${who}`))
+```
+
+But when you think that a render function takes in a parent and returns the
+element, our component is equivalent to this:
+
+```js
+const Greet = ({ who }) => (parent) => {
+  const renderHello = div(text(`Hello ${who}!`))
+  const element = renderHello(parent)
+  return element
 }
 ```
 
-The `valueOf` method returns the current value and `onChange` is a method that
-takes a callback which should be fired when the value changes.
+As you can see, this component returns a function that takes in a parent
+argument and returns the created element, just like all other Longwood
+components.
 
-You can easily wrap e.g. Redux with `ChangeableValue`, use our
-[longwood-usestate](https://www.npmjs.com/package/longwood-usestate) package
-that implements React's useState hook style state handling or roll your own on
-top of rxjs, bacon.js or others.
+The render function can also be used to re-render elements:
+
+```js
+import { div, text } from 'longwood'
+
+const renderFoo = div(text('Foo'))
+const renderBar = div(text('Bar'))
+const target = document.getElementById('app')
+renderFoo(target) // Renders text "Foo"
+setTimeout(() => renderBar(target), 1000) // Changes text to "Bar" after a second
+```
+
+When Longwood re-renders an element, it reuses as much existing DOM elements as
+possible, so it's very performant without using intermediate virtual DOM. It
+also means that server-side rendering works out of the box with Longwood.
+
+Knowing all this we can implement a simple asynchronous loader component:
+
+```js
+import { div, text } from 'longwood'
+
+function AsyncJokeLoader() {
+  return (parent) => {
+    fetchRandomDadJoke().then(({ joke }) => {
+      // After the fetch completes, we can re-render the component:
+      const renderJoke = div(div(text('The joke is here:')), div(text(joke)))
+      renderJoke(parent)
+    })
+
+    // First time we render a simple loading component
+    const renderLoading = div(text('Loading the joke...'))
+    return renderLoading(parent)
+  }
+}
+
+const fetchRandomDadJoke = () =>
+  fetch('https://icanhazdadjoke.com/', {
+    headers: { Accept: 'application/json' }
+  }).then((res) => res.json())
+```
+
+Here the component renders a loading text first and then re-renders the result
+as soon as the request finishes.
+
+This trivial example could be extended to use any general state management
+library instead of promises. You could use rxjs subscriptions, Redux selectors
+or Firebase listeners, and they are all as easy to implement as our little
+example.
 
 ## Getting started (ES Modules)
 

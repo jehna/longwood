@@ -1,5 +1,5 @@
 import { JSDOM } from 'jsdom'
-import { div, ul, li, text, key, ChangeableValue, span, input } from './index'
+import { div, ul, li, text } from './index'
 
 const createRenderTarget = () =>
   new JSDOM('<div id="app" />').window.document.getElementById('app')!
@@ -21,13 +21,6 @@ describe('element creation', () => {
 
   it('should create components with a text node', () => {
     const render = div(text('Hello world'))
-    const element = createRenderTarget()
-    render(element)
-    expect(element.innerHTML).toEqual('<div>Hello world</div>')
-  })
-
-  it('should create components with textContent', () => {
-    const render = div({ textContent: 'Hello world' })
     const element = createRenderTarget()
     render(element)
     expect(element.innerHTML).toEqual('<div>Hello world</div>')
@@ -59,117 +52,85 @@ describe('element creation', () => {
   })
 })
 
-describe('ChangeableValue', () => {
-  const simpleMockState = <T>(
-    value: T
-  ): ChangeableValue<T> & { setValue(val: T): void } => {
-    const listeners: ((newValue: T) => void)[] = []
-    return {
-      valueOf: () => value,
-      onChange: (l) => {
-        listeners.push(l)
-        return () => {}
-      },
-      setValue: (newValue: T) => {
-        value = newValue
-        listeners.forEach((l) => l(newValue))
-      }
-    }
-  }
-
-  it('should accept AsyncValue as text', () => {
-    const render = div(text(simpleMockState('Hello world!')))
+describe('element rerendering', () => {
+  it('should allow re-rendering elements', () => {
+    const render = div(ul(li(text('Hello')), li(text('World'))))
     const element = createRenderTarget()
     render(element)
-    expect(element.innerHTML).toEqual('<div>Hello world!</div>')
-  })
-
-  it('should accept AsyncValue as prop', () => {
-    const render = div({ className: simpleMockState('classname1') })
-    const element = createRenderTarget()
-    render(element)
-    expect(element.innerHTML).toEqual('<div class="classname1"></div>')
-  })
-
-  it('should render incoming value from iterator', async () => {
-    const className = simpleMockState('classname1')
-    const render = div({ className })
-    const element = createRenderTarget()
-    render(element)
-    className.setValue('classname2')
-    expect(element.innerHTML).toEqual('<div class="classname2"></div>')
-  })
-
-  it('should render elements from ChangeableValue array', () => {
-    const render = div(simpleMockState([key('test', ul())]))
-    const element = createRenderTarget()
-    render(element)
-    expect(element.innerHTML).toEqual('<div><ul></ul></div>')
-  })
-
-  it('should handle text changes from ChangeableValue', () => {
-    const state = simpleMockState('foo')
-    const render = div(text(state))
-    const element = createRenderTarget()
-    render(element)
-    expect(element.innerHTML).toEqual('<div>foo</div>')
-    state.setValue('bar')
-    expect(element.innerHTML).toEqual('<div>bar</div>')
-  })
-
-  it('should update elements inside from ChangeableValue array', () => {
-    const first = [key('test', div(text('hello there')))]
-    const second = [key('test', div(text('hello world')))]
-    const state = simpleMockState(first)
-    const render = div(state)
-    const element = createRenderTarget()
-    render(element)
-    expect(element.innerHTML).toEqual('<div><div>hello there</div></div>')
-    state.setValue(second)
-    expect(element.innerHTML).toEqual('<div><div>hello world</div></div>')
-  })
-
-  it('should allow changing children', () => {
-    const first = [key('test', div(text('hello there')))]
-    const second = [key('test', span(text('hello world')))]
-    const state = simpleMockState(first)
-    const render = div(state)
-    const element = createRenderTarget()
-    render(element)
-    expect(element.innerHTML).toEqual('<div><div>hello there</div></div>')
-    state.setValue(second)
-    expect(element.innerHTML).toEqual('<div><span>hello world</span></div>')
-  })
-
-  it('should allow changing amount of children', () => {
-    const first = [
-      key('test1', li(div(text('Will change')), span(text(`This won't`))))
-    ]
-    const second = [
-      key('test1', li(span(text('Did change')), span(text(`This won't`))))
-    ]
-    const state = simpleMockState(first)
-    const render = div(state)
-    const element = createRenderTarget()
     render(element)
     expect(element.innerHTML).toEqual(
-      "<div><li><div>Will change</div><span>This won't</span></li></div>"
-    )
-    state.setValue(second)
-    expect(element.innerHTML).toEqual(
-      "<div><li><span>Did change</span><span>This won't</span></li></div>"
+      '<div><ul><li>Hello</li><li>World</li></ul></div>'
     )
   })
 
-  it('should allow changing key orders', () => {
-    const first = [key('test1', div(text('A'))), key('test2', div(text(`B`)))]
-    const second = [key('test2', div(text('B'))), key('test1', div(text(`A`)))]
-    const state = simpleMockState(first)
-    const render = div(state)
+  it('should allow re-rendering text elements with different value', () => {
+    const element = createRenderTarget()
+    div(text('Hello'))(element)
+    div(text('World'))(element)
+    expect(element.innerHTML).toEqual('<div>World</div>')
+  })
+
+  it('should not remove and re-add the element if the element stays the same', () => {
+    const render = div({ id: 'should-not-change' })
     const element = createRenderTarget()
     render(element)
-    expect(element.innerHTML).toEqual('<div><div>A</div><div>B</div></div>')
-    state.setValue(second)
-    expect(element.innerHTML).toEqual('<div><div>B</div><div>A</div></div>')
+    const childElement = element.querySelector('#should-not-change')
+    childElement!.className = 'Should not touch this'
+    render(element)
+    expect(element.innerHTML).toEqual(
+      '<div id="should-not-change" class="Should not touch this"></div>'
+    )
+  })
+  it('should allow to reorder child elements on rerender', () => {
+    const render1 = div(div(), ul())
+    const render2 = div(ul(), div())
+    const element = createRenderTarget()
+    render1(element)
+    render2(element)
+    expect(element.innerHTML).toEqual('<div><ul></ul><div></div></div>')
+  })
+
+  it('should allow to reorder child elements with smaller number of elements', () => {
+    const render1 = div(div(), ul(), div())
+    const render2 = div(ul(), div())
+    const element = createRenderTarget()
+    render1(element)
+    render2(element)
+    expect(element.innerHTML).toEqual('<div><ul></ul><div></div></div>')
+  })
+
+  it('should allow to reorder child elements with larger number of elements', () => {
+    const render1 = div(ul(), div())
+    const render2 = div(div(), ul(), div())
+    const element = createRenderTarget()
+    render1(element)
+    render2(element)
+    expect(element.innerHTML).toEqual(
+      '<div><div></div><ul></ul><div></div></div>'
+    )
+  })
+
+  it('should allow to remove all children', () => {
+    const render1 = div(ul(), ul(), ul())
+    const render2 = div()
+    const element = createRenderTarget()
+    render1(element)
+    render2(element)
+    expect(element.innerHTML).toEqual('<div></div>')
+  })
+
+  it('should allow to modify nested children', () => {
+    const render1 = div(
+      div(ul(li(text('Hello')))),
+      div(text('Be gone')),
+      ul(li(text('World')))
+    )
+    const render2 = div(ul(li(text('Hello'))), ul(li(text('World'))))
+    const element = createRenderTarget()
+    render1(element)
+    render2(element)
+    expect(element.innerHTML).toEqual(
+      '<div><ul><li>Hello</li></ul><ul><li>World</li></ul></div>'
+    )
   })
 })
