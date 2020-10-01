@@ -59,10 +59,7 @@ const createElement = <TagName extends keyof HTMLElementTagNameMap>(
   if (curr) {
     if (curr.nodeName.toLowerCase() !== tagName) {
       parent.removeChild(curr)
-    } /*else if (curr.nextSibling !== (nextSibling ?? null)) {
-      if (nextSibling) parent.insertBefore(curr, nextSibling)
-      else parent.appendChild(curr)
-    }*/
+    }
   }
   const el =
     curr && curr.nodeName.toLowerCase() === tagName
