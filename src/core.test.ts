@@ -1,5 +1,5 @@
 import { JSDOM } from 'jsdom'
-import { div, ul, li, text } from './index'
+import { div, ul, li, text, custom } from './index'
 
 const createRenderTarget = () =>
   new JSDOM('<div id="app" />').window.document.getElementById('app')!
@@ -131,6 +131,28 @@ describe('element rerendering', () => {
     render2(element)
     expect(element.innerHTML).toEqual(
       '<div><ul><li>Hello</li></ul><ul><li>World</li></ul></div>'
+    )
+  })
+})
+
+describe('Custom elements', () => {
+  it('supports custom elements', () => {
+    const myElement = custom('my-element')
+    const render = myElement()
+    const element = createRenderTarget()
+    render(element)
+    expect(element.innerHTML).toEqual('<my-element></my-element>')
+  })
+
+  it('supports swapping custom elements with regular elements', () => {
+    const myElement = custom('my-element')
+    const render1 = div(div(), myElement(div()), div(myElement()))
+    const render2 = div(div(myElement()), myElement(div()))
+    const element = createRenderTarget()
+    render1(element)
+    render2(element)
+    expect(element.innerHTML).toEqual(
+      '<div><div><my-element></my-element></div><my-element><div></div></my-element></div>'
     )
   })
 })

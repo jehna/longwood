@@ -197,6 +197,8 @@ export const font = createElement('font')
 export const frame = createElement('frame')
 export const frameset = createElement('frameset')
 export const marquee = createElement('marquee')
+export const custom = (elementName: string) =>
+  createElement(elementName as keyof HTMLElementTagNameMap)
 
 const isTextNode = (node: Node): node is Text =>
   'data' in node && !('tagName' in node)
