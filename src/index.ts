@@ -198,15 +198,6 @@ export const frame = createElement('frame')
 export const frameset = createElement('frameset')
 export const marquee = createElement('marquee')
 
-export const fragment = ({
-  children = []
-}: Pick<ElementProps<never>, 'children'> = {}): MountFn => (parent) => {
-  const el = parent.ownerDocument!.createDocumentFragment()
-  parent.appendChild(el)
-  append(children, el)
-  return el
-}
-
 const isTextNode = (node: Node): node is Text =>
   'data' in node && !('tagName' in node)
 
