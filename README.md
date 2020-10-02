@@ -59,10 +59,10 @@ render(document.getElementById('app'))
 
 [▶️ Run in CodeSandbox.io](https://codesandbox.io/s/interesting-rgb-ee4bb?file=/src/index.ts)
 
-### Custom components
+### Components
 
-Custom components in Longwood are simply functions. You can split your
-components up without any overhead:
+Components in Longwood are simply functions. You can split your components up
+without any overhead:
 
 ```js
 const Greet = ({ who }) => div(text(`Hello ${who}`))
@@ -83,88 +83,31 @@ not have any state handling built in, because state handling should not be part
 of a view library.
 
 There are many great state handling libraries out there, and connecting any of
-those to Longwood is simple when you know the basics.
+those to Longwood is simple.
 
 #### A simple asynchronous state
 
-First thing you need to know is that each Longstate component is its own small
-render function:
+How do you update your dom after your state changes? You call the render again
+with fresh data:
 
 ```js
-const renderDiv = div()
-renderDiv(document.getElementById('app')) // Renders a empty div
-```
-
-If we look closer, we can see that all Longstate components take in a parent
-argument and return the created element:
-
-```js
-const renderDiv = div()
-const parent = document.getElementById('app')
-const createdDivElement = renderDiv(parent)
-```
-
-Normally we would create our custom Longstate function like this:
-
-```js
-const Greet = ({ who }) => div(text(`Hello ${who}`))
-```
-
-But when you think that a render function takes in a parent and returns the
-element, our component is equivalent to this:
-
-```js
-const Greet = ({ who }) => (parent) => {
-  const renderHello = div(text(`Hello ${who}!`))
-  const element = renderHello(parent)
-  return element
+export default function AsyncJoke({ joke }) {
+  if (!joke) return div(text('Loading the joke...'))
+  return div(div(text('The joke is here:')), div(text(joke)))
 }
-```
 
-As you can see, this component returns a function that takes in a parent
-argument and returns the created element, just like all other Longwood
-components.
-
-The render function can also be used to re-render elements:
-
-```js
-import { div, text } from 'longwood'
-
-const renderFoo = div(text('Foo'))
-const renderBar = div(text('Bar'))
 const target = document.getElementById('app')
-renderFoo(target) // Renders text "Foo"
-setTimeout(() => renderBar(target), 1000) // Changes text to "Bar" after a second
+
+const renderInitial = AsyncJoke({ joke: undefined })
+renderInitial(target)
+
+fetchRandomJoke().then((joke) => {
+  const renderWithJoke = AsyncJoke({ joke })
+  renderWithJoke(target)
+})
 ```
 
-When Longwood re-renders an element, it reuses as much existing DOM elements as
-possible, so it's very performant without using intermediate virtual DOM. It
-also means that server-side rendering works out of the box with Longwood.
-
-Knowing all this we can implement a simple asynchronous loader component:
-
-```js
-import { div, text } from 'longwood'
-
-function AsyncJokeLoader() {
-  return (parent) => {
-    fetchRandomDadJoke().then(({ joke }) => {
-      // After the fetch completes, we can re-render the component:
-      const renderJoke = div(div(text('The joke is here:')), div(text(joke)))
-      renderJoke(parent)
-    })
-
-    // First time we render a simple loading component
-    const renderLoading = div(text('Loading the joke...'))
-    return renderLoading(parent)
-  }
-}
-
-const fetchRandomDadJoke = () =>
-  fetch('https://icanhazdadjoke.com/', {
-    headers: { Accept: 'application/json' }
-  }).then((res) => res.json())
-```
+[▶️ Run in CodeSandbox.io](https://codesandbox.io/s/prod-cookies-i43wg?file=/src/index.ts)
 
 Here the component renders a loading text first and then re-renders the result
 as soon as the request finishes.
@@ -174,7 +117,7 @@ library instead of promises. You could use rxjs subscriptions, [Redux
 selectors][redux-example] or Firebase listeners, and they are all as easy to
 implement as our little example.
 
-[redux-example]: https://codesandbox.io/s/jolly-blackwell-vkrcv?file=/src/store.ts
+[redux-example]: https://codesandbox.io/s/dazzling-worker-vkpem?file=/src/index.ts
 
 ## Getting started (ES Modules)
 
