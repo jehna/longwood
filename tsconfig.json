@@ -4,7 +4,7 @@
 
     /* Basic Options */
     "incremental": true /* Enable incremental compilation */,
-    "module": "UMD",
+    "module": "ES2015",
     "target": "es5",
     "lib": [
       "DOM",

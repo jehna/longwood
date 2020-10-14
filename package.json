@@ -6,9 +6,7 @@
   "homepage": "https://github.com/jehna/longwood",
   "scripts": {
     "test": "jest",
-    "build": "yarn build:umd && yarn build:esm",
-    "build:umd": "tsc",
-    "build:esm": "tsc --module es6 --outDir build/es",
+    "build": "rollup --config rollup.config.js",
     "release": "./do_release.sh"
   },
   "module": "build/es/index.js",
@@ -22,6 +20,9 @@
     "@types/jsdom": "^16.2.4",
     "jest": "^26.5.3",
     "jsdom": "^16.4.0",
+    "rollup": "^2.30.0",
+    "rollup-plugin-terser": "^7.0.2",
+    "rollup-plugin-typescript2": "^0.27.3",
     "ts-jest": "^26.4.1",
     "typescript": "^4.0.3"
   }

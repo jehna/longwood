@@ -4,3 +4,4 @@ src
 tsconfig.json
 yarn.lock
 .dependabot
+rollup.config.js
