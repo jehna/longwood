@@ -22,6 +22,7 @@ type ElementProps<TagName extends keyof HTMLElementTagNameMap> = {
   style?: {
     [K in keyof CSSStyleDeclaration]?: string
   }
+  onunmount?: (e: Event) => void
 } & Partial<
   NoFunctions<
     Omit<
@@ -59,6 +60,7 @@ const createElement = <TagName extends keyof HTMLElementTagNameMap>(
   if (curr) {
     if (curr.nodeName.toLowerCase() !== tagName) {
       parent.removeChild(curr)
+      broadcast(curr, CustomEvent('unmount', parent))
     }
   }
   const el =
@@ -72,6 +74,11 @@ const createElement = <TagName extends keyof HTMLElementTagNameMap>(
   Object.entries(style).forEach(([key, value]) => {
     el.style[key as any] = value ?? ''
   })
+
+  if ('onunmount' in el && (el as any).onunmount !== rest.onunmount)
+    el.removeEventListener('unmount', (el as any).onunmount)
+  if (rest.onunmount !== (el as any).onunmount)
+    el.addEventListener('unmount', rest.onunmount as any)
 
   Object.entries(rest).forEach(([name, value]) => {
     //@ts-ignore
@@ -218,6 +225,20 @@ export const text = (text: string): MountFn => (parent, index = 0) => {
 const append = (children: Children, parent: Node) => {
   children.forEach((child, index) => child(parent, index))
   while (parent.childNodes.length > children.length) {
-    parent.removeChild(parent.childNodes.item(children.length))
+    const curr = parent.childNodes.item(children.length)
+    parent.removeChild(curr)
+    broadcast(curr, CustomEvent('unmount', parent))
   }
+}
+
+function CustomEvent(event: string, el: Node) {
+  const params = { bubbles: false, cancelable: false, detail: null }
+  var evt = el.ownerDocument!.createEvent('CustomEvent')
+  evt.initCustomEvent(event, params.bubbles, params.cancelable, params.detail)
+  return evt
+}
+
+function broadcast(element: Node, event: CustomEvent) {
+  element.childNodes.forEach((child) => broadcast(child, event))
+  element.dispatchEvent(event)
 }

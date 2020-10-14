@@ -156,3 +156,49 @@ describe('Custom elements', () => {
     )
   })
 })
+
+describe('Lifecycle events', () => {
+  it('supports onunmount on unmounted component', () => {
+    const fn = jest.fn()
+    const render1 = div(div({ onunmount: fn }))
+    const render2 = div()
+    const element = createRenderTarget()
+    render1(element)
+    render2(element)
+    expect(fn).toBeCalled()
+  })
+
+  it('supports onunnount on choldren of unmounted components', () => {
+    const fn = jest.fn()
+    const render1 = div(div(div({ onunmount: fn })))
+    const render2 = div()
+    const element = createRenderTarget()
+    render1(element)
+    render2(element)
+    expect(fn).toBeCalled()
+  })
+
+  it('does not call onunnount on parent of unmounted component', () => {
+    const fn = jest.fn()
+    const render1 = div({ onunmount: fn, children: [div()] })
+    const render2 = div({ onunmount: fn })
+    const element = createRenderTarget()
+    render1(element)
+    render2(element)
+    expect(fn).not.toBeCalled()
+  })
+
+  it("does not call previous onunnount after it's changed", () => {
+    const fn1 = jest.fn()
+    const fn2 = jest.fn()
+    const render1 = div(div({ onunmount: fn1 }))
+    const render2 = div(div({ onunmount: fn2 }))
+    const render3 = div()
+    const element = createRenderTarget()
+    render1(element)
+    render2(element)
+    render3(element)
+    expect(fn1).not.toBeCalled()
+    expect(fn2).toBeCalled()
+  })
+})
