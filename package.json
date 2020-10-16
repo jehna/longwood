@@ -20,7 +20,7 @@
     "@types/jsdom": "^16.2.4",
     "jest": "^26.5.3",
     "jsdom": "^16.4.0",
-    "rollup": "^2.31.0",
+    "rollup": "^2.32.0",
     "rollup-plugin-terser": "^7.0.2",
     "rollup-plugin-typescript2": "^0.27.3",
     "ts-jest": "^26.4.1",
