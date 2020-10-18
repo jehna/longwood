@@ -60,7 +60,6 @@ const createElement = <TagName extends keyof HTMLElementTagNameMap>(
   if (curr) {
     if (curr.nodeName.toLowerCase() !== tagName) {
       parent.removeChild(curr)
-      broadcast(curr, CustomEvent('unmount', parent))
     }
   }
   const el =
@@ -227,18 +226,5 @@ const append = (children: Children, parent: Node) => {
   while (parent.childNodes.length > children.length) {
     const curr = parent.childNodes.item(children.length)
     parent.removeChild(curr)
-    broadcast(curr, CustomEvent('unmount', parent))
   }
-}
-
-function CustomEvent(event: string, el: Node) {
-  const params = { bubbles: false, cancelable: false, detail: null }
-  var evt = el.ownerDocument!.createEvent('CustomEvent')
-  evt.initCustomEvent(event, params.bubbles, params.cancelable, params.detail)
-  return evt
-}
-
-function broadcast(element: Node, event: CustomEvent) {
-  element.childNodes.forEach((child) => broadcast(child, event))
-  element.dispatchEvent(event)
 }
