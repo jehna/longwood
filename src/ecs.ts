@@ -1,115 +1,187 @@
 type System = {
-  guards: any[]
-  callback: (...args: unknown[]) => void
+  guards: ComponentType[]
+  callback: (entity: Entity) => void
 }
 
-type Component = unknown
-type Entity = Component[]
+type MultiSystem = {
+  guards: ComponentType[]
+  callback: (entity: Entity[]) => void
+}
 
-class ECSRuntime {
-  private entities: Entity[] = []
-  private systems: System[] = []
+const entitySymbol = Symbol('ecs-entity')
+type ComponentType = string | symbol
+export type Component = { type: ComponentType; [key: string]: any }
+export type Entity = { type: typeof entitySymbol }
+
+export const createEntity = (...components: Component[]) =>
+  components.reduce<Entity>(
+    (entity, component) => ({ ...entity, [component.type]: component }),
+    { type: entitySymbol }
+  )
+
+export class ECSRuntime {
+  private entities: readonly Entity[] = []
+  private systems: readonly System[] = []
+  private multiSystems: readonly MultiSystem[] = []
+  private singletonEntity = createEntity()
+  private singletonProxy = Object.setPrototypeOf({}, this.singletonEntity)
 
   addEntity(entity: Entity) {
-    this.entities.push(entity)
+    this.entities = this.entities.concat(
+      Object.setPrototypeOf(entity, this.singletonProxy)
+    )
     this.checkForChanges(this.systems, [entity])
   }
 
   addComponentToEntity(entity: Entity, component: Component) {
+    if (entity === this.singletonEntity)
+      return this.addComponentToSingletonEntity(component)
     if (!this.entities.includes(entity)) throw new Error('Entity not added')
-    entity.push(component)
-    this.checkForChanges(this.systems, [entity])
+    const newEntity = Object.setPrototypeOf(
+      { ...entity, [component.type]: component },
+      this.singletonProxy
+    )
+    this.entities = this.entities.filter((e) => e !== entity).concat(newEntity)
+    this.checkForChanges(this.systems, [newEntity])
+    return newEntity
   }
 
-  private checkForChanges(systems: System[], entities: Entity[]) {
-    for (const entity of entities) {
-      checkSystem: for (const system of systems) {
-        const matchingSystems = []
-        for (const componentClass of system.guards) {
-          const componentInstance = entity.find(
-            (component) => component instanceof componentClass
-          )
-          if (componentInstance === undefined) continue checkSystem
-          matchingSystems.push(componentInstance)
+  private addComponentToSingletonEntity(component: Component) {
+    this.singletonEntity = {
+      ...this.singletonEntity,
+      [component.type]: component
+    }
+    Object.setPrototypeOf(this.singletonProxy, this.singletonEntity)
+    this.checkForChanges(
+      this.systems,
+      this.entities.concat(this.singletonEntity)
+    )
+    return this.singletonEntity
+  }
+
+  removeComponentFromEntity(entity: Entity, component: Component) {
+    if (entity === this.singletonEntity)
+      return this.removeComponentFromSingletonEntity(component)
+    if (!this.entities.includes(entity)) throw new Error('Entity not added')
+    const newEntity = { ...entity } as any
+    delete newEntity[component.type]
+    this.entities = this.entities.filter((e) => e !== entity).concat(newEntity)
+    this.checkForChanges(this.systems, [newEntity])
+    return newEntity
+  }
+
+  private removeComponentFromSingletonEntity(component: Component) {
+    const newEntity = { ...this.singletonEntity } as any
+    delete newEntity[component.type]
+    this.singletonEntity = newEntity
+    Object.setPrototypeOf(this.singletonProxy, this.singletonEntity)
+    this.checkForChanges(this.systems, this.entities)
+    return this.singletonEntity
+  }
+
+  removeEntity(entity: Entity) {
+    if (!this.entities.includes(entity)) throw new Error('Entity not added')
+    this.entities = this.entities.filter((e) => e !== entity)
+    this.checkForChanges([], [])
+  }
+
+  getSingletonEntity() {
+    return this.singletonEntity
+  }
+
+  private checkForChanges(
+    systems: readonly System[],
+    entities: readonly Entity[]
+  ) {
+    for (const system of systems) {
+      checkEntity: for (const entity of entities) {
+        let hasOwnProperty = false
+        for (const guard of system.guards) {
+          if (!(guard in entity)) continue checkEntity
+          if (Object.prototype.hasOwnProperty.call(entity, guard))
+            hasOwnProperty = true
         }
-        system.callback(...matchingSystems)
+        if (!hasOwnProperty) continue
+        system.callback(entity)
       }
+    }
+    for (const system of this.multiSystems) {
+      const entities = this.entities
+        .concat(this.singletonEntity)
+        .filter((entity) => {
+          let hasOwnProperty = false
+          for (const guard of system.guards) {
+            if (!(guard in entity)) return false
+            if (Object.prototype.hasOwnProperty.call(entity, guard))
+              hasOwnProperty = true
+          }
+          return hasOwnProperty
+        })
+      system.callback(entities)
     }
   }
 
-  addSystem<T1 extends new (...args: any) => any>(
-    guards: [T1],
-    callback: (instance1: InstanceType<T1>) => void
+  addSystem<T1 extends Component>(
+    guards: [T1['type']],
+    callback: (instance1: Entity & Record<T1['type'], T1>) => void
   ): void
-  addSystem<
-    T1 extends new (...args: any) => any,
-    T2 extends new (...args: any) => any
-  >(
-    guards: [T1, T2],
-    callback: (instance1: InstanceType<T1>, instance2: InstanceType<T2>) => void
-  ): void
-  addSystem<
-    T1 extends new (...args: any) => any,
-    T2 extends new (...args: any) => any,
-    T3 extends new (...args: any) => any
-  >(
-    guards: [T1, T2, T3],
+  addSystem<T1 extends Component, T2 extends Component>(
+    guards: [T1['type'], T2['type']],
     callback: (
-      instance1: InstanceType<T1>,
-      instance2: InstanceType<T2>,
-      instance3: InstanceType<T3>
+      instance1: Entity & Record<T1['type'], T1> & Record<T2['type'], T2>
     ) => void
   ): void
-  addSystem<
-    T1 extends new (...args: any) => any,
-    T2 extends new (...args: any) => any,
-    T3 extends new (...args: any) => any,
-    T4 extends new (...args: any) => any
-  >(
-    guards: [T1, T2, T3, T4],
+  addSystem<T1 extends Component, T2 extends Component, T3 extends Component>(
+    guards: [T1['type'], T2['type'], T3['type']],
     callback: (
-      instance1: InstanceType<T1>,
-      instance2: InstanceType<T2>,
-      instance3: InstanceType<T3>,
-      instance4: InstanceType<T4>
+      instance1: Entity &
+        Record<T1['type'], T1> &
+        Record<T2['type'], T2> &
+        Record<T3['type'], T3>
     ) => void
   ): void
-  addSystem<
-    T1 extends new (...args: any) => any,
-    T2 extends new (...args: any) => any,
-    T3 extends new (...args: any) => any,
-    T4 extends new (...args: any) => any,
-    T5 extends new (...args: any) => any
-  >(
-    guards: [T1, T2, T3, T4, T5],
+  addSystem(guards: System['guards'], callback: System['callback']) {
+    const system = { guards, callback }
+    this.systems = this.systems.concat(system)
+    this.checkForChanges([system], this.entities.concat(this.singletonEntity))
+  }
+
+  addMultiSystem<T1 extends Component>(
+    guards: [T1['type']],
+    callback: (instance1: (Entity & Record<T1['type'], T1>)[]) => void
+  ): void
+  addMultiSystem<T1 extends Component, T2 extends Component>(
+    guards: [T1['type'], T2['type']],
     callback: (
-      instance1: InstanceType<T1>,
-      instance2: InstanceType<T2>,
-      instance3: InstanceType<T3>,
-      instance4: InstanceType<T4>,
-      instance5: InstanceType<T5>
+      instance1: (Entity & Record<T1['type'], T1> & Record<T2['type'], T2>)[]
     ) => void
   ): void
-  addSystem<
-    T1 extends new (...args: any) => any,
-    T2 extends new (...args: any) => any,
-    T3 extends new (...args: any) => any,
-    T4 extends new (...args: any) => any,
-    T5 extends new (...args: any) => any,
-    T6 extends new (...args: any) => any
+  addMultiSystem<
+    T1 extends Component,
+    T2 extends Component,
+    T3 extends Component
   >(
-    guards: [T1, T2, T3, T4, T5, T6],
+    guards: [T1['type'], T2['type'], T3['type']],
     callback: (
-      instance1: InstanceType<T1>,
-      instance2: InstanceType<T2>,
-      instance3: InstanceType<T3>,
-      instance4: InstanceType<T4>,
-      instance5: InstanceType<T5>,
-      instance6: InstanceType<T6>
+      instance1: (Entity &
+        Record<T1['type'], T1> &
+        Record<T2['type'], T2> &
+        Record<T3['type'], T3>)[]
     ) => void
   ): void
-  addSystem(guards, callback) {
-    this.systems.push({ guards, callback })
+  addMultiSystem(
+    guards: MultiSystem['guards'],
+    callback: MultiSystem['callback']
+  ) {
+    const system = { guards, callback }
+    this.multiSystems = this.multiSystems.concat(system)
+    this.checkForChanges([], [])
+  }
+
+  fireEvent(event: ComponentType) {
+    const component = { type: event }
+    this.addComponentToEntity(this.getSingletonEntity(), component)
+    this.removeComponentFromEntity(this.getSingletonEntity(), component)
   }
 }
 

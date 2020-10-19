@@ -1,3 +1,12 @@
+import { Component } from './ecs'
+export { Component, Entity } from './ecs'
+export { createRuntime, createEntity } from './ecs'
+
+export const elementComponentType = '__elementComponentType__'
+export interface ElementComponentType extends Component {
+  type: typeof elementComponentType
+  element: HTMLElement
+}
 export type MountFn = (parent: Node, index?: number) => Node
 type Children = MountFn[]
 
@@ -22,7 +31,6 @@ type ElementProps<TagName extends keyof HTMLElementTagNameMap> = {
   style?: {
     [K in keyof CSSStyleDeclaration]?: string
   }
-  onunmount?: (e: Event) => void
 } & Partial<
   NoFunctions<
     Omit<
@@ -54,7 +62,7 @@ const createElement = <TagName extends keyof HTMLElementTagNameMap>(
     ? args[0]
     : (({ children: args } as unknown) as ElementProps<TagName>)
 
-  const { children = [], dataset = {}, style = {}, ...rest } = props
+  const { children, dataset = {}, style = {}, ...rest } = props
 
   const curr = parent.childNodes[index]
   if (curr) {
@@ -73,12 +81,6 @@ const createElement = <TagName extends keyof HTMLElementTagNameMap>(
   Object.entries(style).forEach(([key, value]) => {
     el.style[key as any] = value ?? ''
   })
-
-  if ('onunmount' in el && (el as any).onunmount !== rest.onunmount)
-    el.removeEventListener('unmount', (el as any).onunmount)
-  if (rest.onunmount !== (el as any).onunmount)
-    el.addEventListener('unmount', rest.onunmount as any)
-
   Object.entries(rest).forEach(([name, value]) => {
     //@ts-ignore
     if (el[name] !== value) {
@@ -86,7 +88,7 @@ const createElement = <TagName extends keyof HTMLElementTagNameMap>(
       el[name] = value
     }
   })
-  append(children, el)
+  children && append(children, el)
 
   return el
 }

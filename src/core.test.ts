@@ -1,8 +1,20 @@
 import { JSDOM } from 'jsdom'
-import { div, ul, li, text, custom } from './index'
+import {
+  div,
+  ul,
+  li,
+  text,
+  custom,
+  createRuntime,
+  elementComponentType
+} from './index'
 
-const createRenderTarget = () =>
-  new JSDOM('<div id="app" />').window.document.getElementById('app')!
+const createWindowAndRenderTarget = () => {
+  const window = new JSDOM('<div id="app" />').window
+  const element = window.document.getElementById('app')!
+  return { window, element }
+}
+const createRenderTarget = () => createWindowAndRenderTarget().element
 
 describe('element creation', () => {
   it('should create a simple element wihtout any props', () => {
