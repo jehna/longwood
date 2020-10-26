@@ -1,51 +1,178 @@
-type System = {
-  guards: ComponentType[]
-  callback: (entity: Entity) => void
-}
-
-type MultiSystem = {
-  guards: ComponentType[]
-  callback: (entity: Entity[]) => void
-}
+type GuardType<T> = T extends (v: any) => v is infer R ? R : never
+type Architype = { [key: string]: (v: any) => v is any }
 
 const entitySymbol = Symbol('ecs-entity')
-type ComponentType = string | symbol
-export type Component = { type: ComponentType; [key: string]: any }
-export type Entity = { type: typeof entitySymbol }
+export type Component = unknown
+export type Entity = {
+  type: typeof entitySymbol
+  id: number
+  components: Component[]
+}
 
-export const createEntity = (...components: Component[]) =>
-  components.reduce<Entity>(
-    (entity, component) => ({ ...entity, [component.type]: component }),
-    { type: entitySymbol }
+export const instanceOf = <T extends new (...args: any) => any>(
+  classType: T
+) => (value: any): value is InstanceType<T> => value instanceof classType
+
+type ArchitypeImpl = { entityId: number; data: { [key: string]: unknown } }
+
+const entityMatches = (
+  entity: Entity,
+  architype: Architype,
+  singletonEntity: Entity
+): ArchitypeImpl | null => {
+  const impl: ArchitypeImpl = { entityId: entity.id, data: {} }
+  let hasOwnComponent = false
+  for (const [key, guard] of Object.entries(architype)) {
+    const ownComponent = entity.components.find(guard)
+    const singletonComponent = singletonEntity.components.find(guard)
+    if (ownComponent) {
+      impl.data[key] = ownComponent
+      hasOwnComponent = true
+    } else if (singletonComponent) {
+      impl.data[key] = singletonComponent
+    } else return null
+  }
+
+  return hasOwnComponent ? impl : null
+}
+
+const entitiesMatching = (
+  entities: readonly Entity[],
+  architype: Architype,
+  singletonEntity: Entity
+): ArchitypeImpl[] => {
+  const singletonImpl = entityMatches(
+    singletonEntity,
+    architype,
+    singletonEntity
   )
+  if (singletonImpl !== null) return [singletonImpl]
+
+  return entities
+    .map((entity) => entityMatches(entity, architype, singletonEntity))
+    .filter((impl): impl is ArchitypeImpl => impl !== null)
+}
+
+type System = {
+  architype: Architype
+  iterator: any
+  matching: ArchitypeImpl[]
+}
 
 export class ECSRuntime {
   private entities: readonly Entity[] = []
-  private systems: readonly System[] = []
-  private multiSystems: readonly MultiSystem[] = []
-  private singletonEntity = createEntity()
-  private singletonProxy = Object.setPrototypeOf({}, this.singletonEntity)
+  private systems: System[] = []
+  private multiSystems: System[] = []
+  private _nextEntityId: number = 0
+  private singletonEntity = this.createEntity()
 
-  addEntity(entity: Entity) {
-    this.entities = this.entities.concat(
-      Object.setPrototypeOf(entity, this.singletonProxy)
-    )
-    this.checkForChanges(this.systems, [entity])
+  private nextEntityId() {
+    return this._nextEntityId++
+  }
+  private createEntity(...components: Component[]): Entity {
+    return {
+      type: entitySymbol,
+      id: this.nextEntityId(),
+      components
+    }
+  }
+
+  addEntity(...components: Component[]): Entity {
+    const entity = this.createEntity(...components)
+    this.entities = this.entities.concat(entity)
+    for (const system of this.systems) {
+      const impl = entityMatches(entity, system.architype, this.singletonEntity)
+      if (impl === null || impl.entityId === this.singletonEntity.id) continue
+
+      system.matching.push(impl)
+      system.iterator(impl.data)
+    }
+
+    for (const multiSystem of this.multiSystems) {
+      const newMatching = entitiesMatching(
+        this.entities,
+        multiSystem.architype,
+        this.singletonEntity
+      )
+      if (!newMatching.some((match) => match.entityId === entity.id)) continue
+
+      multiSystem.matching = newMatching
+      multiSystem.iterator(multiSystem.matching.map((match) => match.data))
+    }
+
+    return entity
+  }
+
+  addSystem<A extends Architype>(
+    architype: A,
+    iterator: (props: { [key in keyof A]: GuardType<A[key]> }) => void
+  ) {
+    const system: System = {
+      architype,
+      iterator,
+      matching: entitiesMatching(this.entities, architype, this.singletonEntity)
+    }
+    this.systems.push(system)
+    system.matching.forEach((match) => system.iterator(match.data))
+  }
+
+  addMultiSystem<A extends Architype>(
+    architype: A,
+    iterator: (props: { [key in keyof A]: GuardType<A[key]> }[]) => void
+  ) {
+    const system: System = {
+      architype,
+      iterator,
+      matching: entitiesMatching(this.entities, architype, this.singletonEntity)
+    }
+    this.multiSystems.push(system)
+    system.iterator(system.matching.map((m) => m.data))
   }
 
   addComponentToEntity(entity: Entity, component: Component) {
-    if (entity === this.singletonEntity)
-      return this.addComponentToSingletonEntity(component)
-    if (!this.entities.includes(entity)) throw new Error('Entity not added')
-    const newEntity = Object.setPrototypeOf(
-      { ...entity, [component.type]: component },
-      this.singletonProxy
-    )
-    this.entities = this.entities.filter((e) => e !== entity).concat(newEntity)
-    this.checkForChanges(this.systems, [newEntity])
-    return newEntity
+    if (!this.entities.includes(entity) && entity !== this.singletonEntity)
+      throw new Error('Entity not added to runtime')
+    entity.components = entity.components.concat(component)
+
+    for (const system of this.systems) {
+      const impl = entityMatches(entity, system.architype, this.singletonEntity)
+      if (impl === null) continue
+
+      system.matching.push(impl)
+      system.iterator(impl.data)
+    }
+
+    for (const multiSystem of this.multiSystems) {
+      const newMatching = entitiesMatching(
+        this.entities,
+        multiSystem.architype,
+        this.singletonEntity
+      )
+      if (
+        entity.id !== this.singletonEntity.id &&
+        !newMatching.some((match) => match.entityId === entity.id)
+      )
+        continue
+
+      multiSystem.matching = newMatching
+      multiSystem.iterator(multiSystem.matching.map((match) => match.data))
+    }
   }
 
+  removeEntity(entity: Entity) {
+    if (!this.entities.includes(entity)) throw new Error('Entity not added')
+    this.entities = this.entities.filter((e) => e !== entity)
+    for (const system of this.systems) {
+      if (system.matching.some((match) => match.entityId === entity.id)) {
+        system.matching = entitiesMatching(
+          this.entities,
+          system.architype,
+          this.singletonEntity
+        )
+      }
+    }
+  }
+  /*
   private addComponentToSingletonEntity(component: Component) {
     this.singletonEntity = {
       ...this.singletonEntity,
@@ -59,16 +186,6 @@ export class ECSRuntime {
     return this.singletonEntity
   }
 
-  removeComponentFromEntity(entity: Entity, component: Component) {
-    if (entity === this.singletonEntity)
-      return this.removeComponentFromSingletonEntity(component)
-    if (!this.entities.includes(entity)) throw new Error('Entity not added')
-    const newEntity = { ...entity } as any
-    delete newEntity[component.type]
-    this.entities = this.entities.filter((e) => e !== entity).concat(newEntity)
-    this.checkForChanges(this.systems, [newEntity])
-    return newEntity
-  }
 
   private removeComponentFromSingletonEntity(component: Component) {
     const newEntity = { ...this.singletonEntity } as any
@@ -77,111 +194,33 @@ export class ECSRuntime {
     Object.setPrototypeOf(this.singletonProxy, this.singletonEntity)
     this.checkForChanges(this.systems, this.entities)
     return this.singletonEntity
-  }
+  }*/
 
-  removeEntity(entity: Entity) {
-    if (!this.entities.includes(entity)) throw new Error('Entity not added')
-    this.entities = this.entities.filter((e) => e !== entity)
-    this.checkForChanges([], [])
-  }
+  removeComponentFromEntity(entity: Entity, component: Component) {
+    if (!this.entities.includes(entity) && entity !== this.singletonEntity)
+      throw new Error('Entity not added')
+    if (!entity.components.includes(component))
+      throw new Error('Component not added to entity')
 
-  getSingletonEntity() {
-    return this.singletonEntity
-  }
-
-  private checkForChanges(
-    systems: readonly System[],
-    entities: readonly Entity[]
-  ) {
-    for (const system of systems) {
-      checkEntity: for (const entity of entities) {
-        let hasOwnProperty = false
-        for (const guard of system.guards) {
-          if (!(guard in entity)) continue checkEntity
-          if (Object.prototype.hasOwnProperty.call(entity, guard))
-            hasOwnProperty = true
-        }
-        if (!hasOwnProperty) continue
-        system.callback(entity)
+    entity.components = entity.components.filter((c) => c !== component)
+    for (const system of this.systems) {
+      if (system.matching.some((match) => match.entityId === entity.id)) {
+        system.matching = entitiesMatching(
+          this.entities,
+          system.architype,
+          this.singletonEntity
+        )
       }
     }
-    for (const system of this.multiSystems) {
-      const entities = this.entities
-        .concat(this.singletonEntity)
-        .filter((entity) => {
-          let hasOwnProperty = false
-          for (const guard of system.guards) {
-            if (!(guard in entity)) return false
-            if (Object.prototype.hasOwnProperty.call(entity, guard))
-              hasOwnProperty = true
-          }
-          return hasOwnProperty
-        })
-      system.callback(entities)
-    }
   }
 
-  addSystem<T1 extends Component>(
-    guards: [T1['type']],
-    callback: (instance1: Entity & Record<T1['type'], T1>) => void
-  ): void
-  addSystem<T1 extends Component, T2 extends Component>(
-    guards: [T1['type'], T2['type']],
-    callback: (
-      instance1: Entity & Record<T1['type'], T1> & Record<T2['type'], T2>
-    ) => void
-  ): void
-  addSystem<T1 extends Component, T2 extends Component, T3 extends Component>(
-    guards: [T1['type'], T2['type'], T3['type']],
-    callback: (
-      instance1: Entity &
-        Record<T1['type'], T1> &
-        Record<T2['type'], T2> &
-        Record<T3['type'], T3>
-    ) => void
-  ): void
-  addSystem(guards: System['guards'], callback: System['callback']) {
-    const system = { guards, callback }
-    this.systems = this.systems.concat(system)
-    this.checkForChanges([system], this.entities.concat(this.singletonEntity))
+  addComponentToSingletonEntity(component: Component) {
+    this.addComponentToEntity(this.singletonEntity, component)
   }
 
-  addMultiSystem<T1 extends Component>(
-    guards: [T1['type']],
-    callback: (instance1: (Entity & Record<T1['type'], T1>)[]) => void
-  ): void
-  addMultiSystem<T1 extends Component, T2 extends Component>(
-    guards: [T1['type'], T2['type']],
-    callback: (
-      instance1: (Entity & Record<T1['type'], T1> & Record<T2['type'], T2>)[]
-    ) => void
-  ): void
-  addMultiSystem<
-    T1 extends Component,
-    T2 extends Component,
-    T3 extends Component
-  >(
-    guards: [T1['type'], T2['type'], T3['type']],
-    callback: (
-      instance1: (Entity &
-        Record<T1['type'], T1> &
-        Record<T2['type'], T2> &
-        Record<T3['type'], T3>)[]
-    ) => void
-  ): void
-  addMultiSystem(
-    guards: MultiSystem['guards'],
-    callback: MultiSystem['callback']
-  ) {
-    const system = { guards, callback }
-    this.multiSystems = this.multiSystems.concat(system)
-    this.checkForChanges([], [])
-  }
-
-  fireEvent(event: ComponentType) {
-    const component = { type: event }
-    this.addComponentToEntity(this.getSingletonEntity(), component)
-    this.removeComponentFromEntity(this.getSingletonEntity(), component)
+  fireEvent(event: Component) {
+    this.addComponentToSingletonEntity(event)
+    this.removeComponentFromEntity(this.singletonEntity, event)
   }
 }
 

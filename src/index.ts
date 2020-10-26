@@ -1,12 +1,6 @@
-import { Component } from './ecs'
-export { Component, Entity } from './ecs'
-export { createRuntime, createEntity } from './ecs'
+export { instanceOf, Entity } from './ecs'
+export { createRuntime } from './ecs'
 
-export const elementComponentType = '__elementComponentType__'
-export interface ElementComponentType extends Component {
-  type: typeof elementComponentType
-  element: HTMLElement
-}
 export type MountFn = (parent: Node, index?: number) => Node
 type Children = MountFn[]
 
