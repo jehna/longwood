@@ -17,7 +17,7 @@
   },
   "devDependencies": {
     "@types/jest": "^26.0.15",
-    "@types/jsdom": "^16.2.4",
+    "@types/jsdom": "^16.2.5",
     "jest": "^26.6.1",
     "jsdom": "^16.4.0",
     "rollup": "^2.32.1",
