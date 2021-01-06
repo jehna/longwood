@@ -117,7 +117,11 @@ library instead of promises. You could use rxjs subscriptions, [Redux
 selectors][redux-example] or Firebase listeners, and they are all as easy to
 implement as our little example.
 
+For people coming from React there's [longwood-usestate][longwood-usestate]
+library that behaves close to how React's `useState` and `useContext` hooks do.
+
 [redux-example]: https://codesandbox.io/s/dazzling-worker-vkpem?file=/src/index.ts
+[longwood-usestate]: https://npmjs.com/package/longwood-usestate
 
 ## Getting started (ES Modules)
 
