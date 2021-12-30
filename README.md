@@ -160,9 +160,9 @@ Then you can import the package in your js file. For example if you're using
 Webpack, you can do:
 
 ```js
-import { div } from 'longwood'
+import { div, text } from 'longwood'
 
-const render = div({ innerText: 'Hello world!' })
+const render = div(text('Hello world!'))
 render(document.getElementById('app'))
 ```
 
