@@ -5,3 +5,6 @@ tsconfig.json
 yarn.lock
 .dependabot
 rollup.config.js
+.github
+do_release.sh
+jest.config.js
