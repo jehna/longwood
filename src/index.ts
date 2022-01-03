@@ -47,53 +47,52 @@ const createAndAppend = <TagName extends keyof HTMLElementTagNameMap>(
   return el
 }
 
-function createElement<TagName extends keyof HTMLElementTagNameMap>(tagName: TagName)  {
-    
+function createElement<TagName extends keyof HTMLElementTagNameMap>(
+  tagName: TagName
+) {
   return function element(...args: ElementArgs<TagName>): MountFn {
+    return function render(parent, index = 0) {
+      const props: ElementProps<TagName> = isProps(args)
+        ? args[0]
+        : ({ children: args } as unknown as ElementProps<TagName>)
 
-      return function render(parent, index = 0) {
+      const { children = [], dataset = {}, style = {}, ...rest } = props
 
-          const props: ElementProps<TagName> = isProps(args)
-              ? args[0]
-              : (({ children: args } as unknown) as ElementProps<TagName>)
-
-          const { children = [], dataset = {}, style = {}, ...rest } = props
-
-          const curr = parent.childNodes[index]
-          if (curr) {
-              if (curr.nodeName.toLowerCase() !== tagName) {
-                  parent.removeChild(curr)        
-                  broadcast(curr, CustomEvent('unmount', parent))
-              }
-          }
-          const el =
-              curr && curr.nodeName.toLowerCase() === tagName
-                  ? (curr as HTMLElementTagNameMap[TagName])
-                  : createAndAppend(tagName, parent, index)
-   
-          Object.entries(dataset).forEach(([key, value]) => {
-              el.dataset[key] = value
-          })
-          Object.entries(style).forEach(([key, value]) => {
-              el.style[key as any] = value ?? ''
-          })
-
-          if ('onunmount' in el && (el as any).onunmount !== rest.onunmount)
-              el.removeEventListener('unmount', (el as any).onunmount)
-          if (rest.onunmount !== (el as any).onunmount)
-              el.addEventListener('unmount', rest.onunmount as any)
-
-          Object.entries(rest).forEach(([name, value]) => {
-              //@ts-ignore
-              if (el[name] !== value) {
-                  //@ts-ignore
-                  el[name] = value
-              }
-          })
-          append(children, el)
-
-          return el
+      const curr = parent.childNodes[index]
+      if (curr) {
+        if (curr.nodeName.toLowerCase() !== tagName) {
+          parent.removeChild(curr)
+          broadcast(curr, CustomEvent('unmount', parent))
+        }
       }
+      const el =
+        curr && curr.nodeName.toLowerCase() === tagName
+          ? (curr as HTMLElementTagNameMap[TagName])
+          : createAndAppend(tagName, parent, index)
+
+      Object.entries(dataset).forEach(([key, value]) => {
+        el.dataset[key] = value
+      })
+      Object.entries(style).forEach(([key, value]) => {
+        el.style[key as any] = value ?? ''
+      })
+
+      if ('onunmount' in el && (el as any).onunmount !== rest.onunmount)
+        el.removeEventListener('unmount', (el as any).onunmount)
+      if (rest.onunmount !== (el as any).onunmount)
+        el.addEventListener('unmount', rest.onunmount as any)
+
+      Object.entries(rest).forEach(([name, value]) => {
+        //@ts-ignore
+        if (el[name] !== value) {
+          //@ts-ignore
+          el[name] = value
+        }
+      })
+      append(children, el)
+
+      return el
+    }
   }
 }
 
@@ -219,17 +218,19 @@ export const custom = (elementName: string) =>
 const isTextNode = (node: Node): node is Text =>
   'data' in node && !('tagName' in node)
 
-export const text = (text: string): MountFn => (parent, index = 0) => {
-  const curr = parent.childNodes[index]
-  if (curr && isTextNode(curr)) {
-    curr.data = text
-    return curr
-  } else {
-    const el = parent.ownerDocument!.createTextNode(text)
-    parent.appendChild(el)
-    return el
+export const text =
+  (text: string): MountFn =>
+  (parent, index = 0) => {
+    const curr = parent.childNodes[index]
+    if (curr && isTextNode(curr)) {
+      curr.data = text
+      return curr
+    } else {
+      const el = parent.ownerDocument!.createTextNode(text)
+      parent.appendChild(el)
+      return el
+    }
   }
-}
 
 const append = (children: Children, parent: Node) => {
   children.forEach((child, index) => child(parent, index))
